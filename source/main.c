@@ -9,8 +9,8 @@ int main(int argc, char **argv)
 {
   Result rc;
   FILE *outFile;
-  u8 *buffer, *sharedmem_addr;
-  
+  u8 *sharedmem_addr;
+
   gfxInitDefault();
   consoleInit(NULL);
   if (R_FAILED(rc = plInitialize())) {
@@ -23,22 +23,15 @@ int main(int argc, char **argv)
   outFile = fopen("shared_font.bin", "wb");
   printf("\nDumping shared font...\n");
 
-  buffer = (u8*) calloc(SHAREDMEMFONT_SIZE , sizeof(u8));
-  memcpy(buffer, sharedmem_addr, SHAREDMEMFONT_SIZE );
-  if (fwrite(buffer, sizeof(u8), SHAREDMEMFONT_SIZE , outFile) != SHAREDMEMFONT_SIZE) {
+  if (fwrite(sharedmem_addr, sizeof(u8), SHAREDMEMFONT_SIZE , outFile) != SHAREDMEMFONT_SIZE) {
           printf("\nFailed to write shared font.\n");
-          free(buffer);
-          fclose(outFile);
-          gfxExit();
-          plExit();
-          return false;
+  } else {
+    printf("\nSuccessfully dumped to shared_font.bin!\n");
+    printf("\n\n\nPress + to exit");
   }
-  free(buffer);
   fclose(outFile);
 
-  printf("\nSuccessfully dumped to shared_font.bin!\n");
-  printf("\n\n\nPress + to exit");
-  int kDown;
+  u64 kDown;
   while(appletMainLoop()) {
     hidScanInput();
     kDown = hidKeysDown(CONTROLLER_P1_AUTO);
