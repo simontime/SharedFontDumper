@@ -2,54 +2,112 @@
 #include <stdlib.h>
 #include <string.h>
 #include <switch.h>
-#define SHAREDMEMFONT_SIZE 0x1100000
 
+#define MemSize 0x1100000
+#define ErrStr "Failed to dump %s, please check your SD card storage space.\n"
+#define SuccessStr "\n\nSuccessfully dumped shared fonts!\n\n\nPress + to exit."
 
-int main(int argc, char **argv) {
-    Result rc;
-    FILE *outFile;
-    u8 *buffer, *sharedmem_addr;
-    int kDown;
+int main() {
+	int kDown;
+	int Done = 0;
+	Result rc;
+	gfxInitDefault();
+	consoleInit(NULL);
 
-    gfxInitDefault();
-    consoleInit(NULL);
+	FILE *outFile;
+	u8 *buffer;
+	PlFontData font;
+
+	printf("Press A to dump fonts as ttf, or press X to dump the shared font memory.\n\n\n");
+
+	void closeall(u8 *mem, FILE *out) {
+		free(mem);
+		fclose(out);
+	}
+
+	void clrfrmbuf() {
+		gfxFlushBuffers();
+		gfxSwapBuffers();
+		gfxWaitForVsync();
+	}
 
     if (R_FAILED(rc = plInitialize())) {
         printf("plInitialize() failed\n0x%x\n", rc);
         return rc;
     }
 
-    sharedmem_addr = (u8*)plGetSharedmemAddr();
+	int DumpMem() {
+		char *Name = "shared_font.bin";
 
-    outFile = fopen("shared_font.bin", "wb");
-    printf("Dumping shared font...\n");
+		outFile = fopen(Name, "wb");
 
-    buffer = (u8*)calloc(SHAREDMEMFONT_SIZE, sizeof(u8));
+		printf("Dumping shared font memory...\n");
 
-    memcpy(buffer, sharedmem_addr, SHAREDMEMFONT_SIZE);
-    if (fwrite(buffer, sizeof(u8), SHAREDMEMFONT_SIZE, outFile) != SHAREDMEMFONT_SIZE) {
-        printf("Failed to write shared font.\n");
-        free(buffer);
-        fclose(outFile);
-        gfxExit();
-        plExit();
-        return 1;
-    }
+		buffer = malloc(MemSize * sizeof(u8));
+		memcpy(buffer, plGetSharedmemAddr(), MemSize);
 
-    free(buffer);
-    fclose(outFile);
+		if (fwrite(buffer, sizeof(u8), MemSize, outFile) != MemSize) {
+			printf(ErrStr, Name);
+			closeall(buffer, outFile);
+			gfxExit();
+			plExit();
+			return 1;
+		}
 
-    printf("Successfully dumped to shared_font.bin!\n\n\n\n");
-    printf("Press + to exit");
+		closeall(buffer, outFile);
+		clrfrmbuf();
+		return 0;
+	}
+
+	int DumpFont(PlSharedFontType type, char *Name) {
+		outFile = fopen(Name, "wb");
+
+		printf("Dumping %s...\n", Name);
+
+		plGetSharedFontByType(&font, type);
+
+		u32 size = font.size;
+
+		buffer = malloc(size * sizeof(u8));
+		memcpy(buffer, font.address, size);
+
+		if (fwrite(buffer, sizeof(u8), size, outFile) != size) {
+			printf(ErrStr, Name);
+			closeall(buffer, outFile);
+			gfxExit();
+			plExit();
+			return 1;
+		}
+
+		closeall(buffer, outFile);
+		clrfrmbuf();
+		return 0;
+	}
 
     while (appletMainLoop()) {
         hidScanInput();
         kDown = hidKeysDown(CONTROLLER_P1_AUTO);
+
+		if (kDown & KEY_A && !Done) {
+			DumpFont(PlSharedFontType_Standard, "FontStandard.ttf");
+			DumpFont(PlSharedFontType_ChineseSimplified, "FontChineseSimplified.ttf");
+			DumpFont(PlSharedFontType_ExtChineseSimplified, "FontExtendedChineseSimplified.ttf");
+			DumpFont(PlSharedFontType_ChineseTraditional, "FontChineseTraditional.ttf");
+			DumpFont(PlSharedFontType_KO, "FontKorean.ttf");
+			DumpFont(PlSharedFontType_NintendoExt, "FontNintendoExtended.ttf");
+			printf(SuccessStr);
+			Done++;
+		}
+
+		if (kDown & KEY_X && !Done) {
+			DumpMem();
+			printf(SuccessStr);
+			Done++;
+		}
+
         if (kDown & KEY_PLUS) break;
 
-        gfxFlushBuffers();
-        gfxSwapBuffers();
-        gfxWaitForVsync();
+		clrfrmbuf();
     }
     
     gfxExit();
