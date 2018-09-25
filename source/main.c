@@ -18,7 +18,7 @@ int main() {
 	u8 *buffer;
 	PlFontData font;
 
-	printf("Press A to dump fonts as ttf, or press X to dump the shared font memory.\n\n\n");
+	puts("Press A to dump fonts as ttf, or press X to dump the shared font memory.\n\n\n");
 
 	void closeall(u8 *mem, FILE *out) {
 		free(mem);
@@ -41,7 +41,7 @@ int main() {
 
 		outFile = fopen(Name, "wb");
 
-		printf("Dumping shared font memory...\n");
+		puts("Dumping shared font memory...\n");
 
 		buffer = malloc(MemSize * sizeof(u8));
 		memcpy(buffer, plGetSharedmemAddr(), MemSize);
@@ -95,13 +95,13 @@ int main() {
 			DumpFont(PlSharedFontType_ChineseTraditional, "FontChineseTraditional.ttf");
 			DumpFont(PlSharedFontType_KO, "FontKorean.ttf");
 			DumpFont(PlSharedFontType_NintendoExt, "FontNintendoExtended.ttf");
-			printf(SuccessStr);
+			puts(SuccessStr);
 			Done++;
 		}
 
 		if (kDown & KEY_X && !Done) {
 			DumpMem();
-			printf(SuccessStr);
+			puts(SuccessStr);
 			Done++;
 		}
 
