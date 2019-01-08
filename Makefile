@@ -10,9 +10,9 @@ TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/libnx/switch_rules
 
 APP_TITLE		:=	Shared Font Dumper
-APP_AUTHOR		:=	SimonMKWii
-APP_VERSION		:=	1.0.1337
-TARGET		:=	$(notdir $(CURDIR))
+APP_AUTHOR		:=	Simon Aarons
+APP_VERSION		:=	2.1
+TARGET		:=	sfdumper
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data
@@ -24,17 +24,16 @@ EXEFS_SRC	:=	exefs_src
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
-			$(ARCH) $(DEFINES)
+CFLAGS	:=	$(ARCH) $(DEFINES) -s -O3
 
-CFLAGS	+=	$(INCLUDE) -DSWITCH
+CFLAGS	+=	$(INCLUDE) -DSWITCH `freetype-config --cflags`
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lnx
+LIBS	:= -lnx `freetype-config --libs`
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -137,18 +136,8 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-all	:	$(OUTPUT).pfs0 $(OUTPUT).nro
-
-$(OUTPUT).pfs0	:	$(OUTPUT).nso
-
-$(OUTPUT).nso	:	$(OUTPUT).elf
-
-ifeq ($(strip $(NO_NACP)),)
+all	:	$(OUTPUT).nro
 $(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp
-else
-$(OUTPUT).nro	:	$(OUTPUT).elf
-endif
-
 $(OUTPUT).elf	:	$(OFILES)
 
 #---------------------------------------------------------------------------------

@@ -1,115 +1,102 @@
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
+#include "text.h"
 
-#include <switch.h>
-
-#define MEMSIZE 0x1100000
-#define DIRNAME "fonts"
-#define SUCCESS "\n\nSuccessfully dumped shared fonts!\n\n\n\nPress + to exit."
-#define IOERROR "Error: Failed to open file for writing.\n"
-
-int DumpMem(void) {
+void DumpMem() {
 	FILE *outFile;
 	u8 *buf = malloc(MEMSIZE);
 
 	if (!(outFile = fopen("fonts/shared_font.bin", "wb"))) {
-		fputs(IOERROR, stderr);
+		draw_text(0x10, 0x60, RED, IOERROR);
 		goto exit;
 	}
 
-	puts("\nDumping shared font memory...\n");
+	draw_text(0x10, 0x60, SKYBLUE, "Dumping shared font memory...");
+	text_update();
 
 	memcpy(buf, plGetSharedmemAddr(), MEMSIZE);
 
-	fwrite(buf, MEMSIZE, 1, outFile);
+	fwrite(buf, sizeof(u8), MEMSIZE, outFile);
 	free(buf);
 	
 exit:
 	fclose(outFile);
-	
-	gfxFlushBuffers();
-	gfxSwapBuffers();
-	gfxWaitForVsync();
-
-	return 0;
 }
 
-int DumpFont(PlSharedFontType type, char *name) {
+int Dumped = 0;
+
+void DumpFont(PlSharedFontType type, char *name) {
 	FILE *outFile;
-	char *newName = malloc(strlen(DIRNAME) + strlen(name) + 1);
+
+	char *newName = malloc(strlen(DIRNAME) + strlen(name) + 2),
+		 *str 	  = malloc(strlen(name) + 0x10);
 	
 	PlFontData font;
 
 	sprintf(newName, "%s/%s", DIRNAME, name);
-	printf("Dumping %s...\n", name);
-			
+
 	if (!(outFile = fopen(newName, "wb"))) {
-		fputs(IOERROR, stderr);
+		draw_text(0x10, 0x60, RED, IOERROR);
 		goto exit;
 	}
-		
+
+	sprintf(str, "Dumping %s...\n", name);
+
+	draw_text(0x10, 0x60 + 0x20 * Dumped++, SKYBLUE, str);
+	text_update();
+
 	plGetSharedFontByType(&font, type);
 
 	u8 *buf = malloc(font.size);
 	
 	memcpy(buf, font.address, font.size);
 
-	fwrite(buf, font.size, 1, outFile);
+	fwrite(buf, sizeof(u8), font.size, outFile);
 	free(buf);
 	
 exit:
+	free(newName);
+	free(str);
 	fclose(outFile);
-	
-	gfxFlushBuffers();
-	gfxSwapBuffers();
-	gfxWaitForVsync();
-
-	return 0;
 }
 
-int main(void) {
+void main() {
 	int kDown, isDone = 0;
 	struct stat *sb = memalign(0x1000, sizeof *sb);
 	
-	gfxInitDefault();
-	consoleInit(NULL);
-	plInitialize();
+	plInitialize();	
+	text_init();
 
-	puts("Press A to dump fonts as ttf, or press X to dump the shared font memory.\n\n");
-	
 	if (stat(DIRNAME, sb))
 		mkdir(DIRNAME, 0777);
+
+	draw_text(0x10, 0x20, WHITE, "Press A to dump fonts as ttf, or press X to dump the shared font memory.");
+	text_update();
 
     while (appletMainLoop()) {
         hidScanInput();
         kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
 		if (kDown & KEY_A && !isDone++) {
-			DumpFont(PlSharedFontType_Standard,		"FontStandard.ttf");
+			DumpFont(PlSharedFontType_Standard, 			"FontStandard.ttf");
 			DumpFont(PlSharedFontType_ChineseSimplified, 	"FontChineseSimplified.ttf");
 			DumpFont(PlSharedFontType_ExtChineseSimplified, "FontExtendedChineseSimplified.ttf");
 			DumpFont(PlSharedFontType_ChineseTraditional, 	"FontChineseTraditional.ttf");
-			DumpFont(PlSharedFontType_KO,			"FontKorean.ttf");
-			DumpFont(PlSharedFontType_NintendoExt,		"FontNintendoExtended.ttf");
-			puts(SUCCESS);
+			DumpFont(PlSharedFontType_KO, 					"FontKorean.ttf");
+			DumpFont(PlSharedFontType_NintendoExt, 			"FontNintendoExtended.ttf");
+			draw_text(0x10, 0x80 + 0x20 * Dumped, GREEN, SUCCESS);
 		}
 
 		if (kDown & KEY_X && !isDone++) {
 			DumpMem();
-			puts(SUCCESS);
+			draw_text(0x10, 0xa0, GREEN, SUCCESS);
 		}
 
         if (kDown & KEY_PLUS) break;
 
-		gfxFlushBuffers();
-		gfxSwapBuffers();
-		gfxWaitForVsync();
+		text_update();
     }
-    
-    gfxExit();
+
+	free(sb);
+
+	text_exit();
     plExit();
-    return 0;
 }
